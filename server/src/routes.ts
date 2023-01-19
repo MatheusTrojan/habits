@@ -132,4 +132,35 @@ export async function appRoutes(app: FastifyInstance) {
 
     })
 
+    app.get("/summary", async () => {
+        // retornar um resumo, onde tenha uma lista com várias informações dentro (cada informação sendo um objeto)
+        // [ { date: 19/01, amountOfHabits: 5, amountOfCompletedHabits: 5 }, { date: 20/01, amountOfHabits: 3, amountOfCompletedHabits: 1 }, etc ]
+
+        const summary = await prisma.$queryRaw`
+            SELECT 
+                D.id, 
+                D.date,
+                (
+                    SELECT 
+                        cast(count(*) as float)
+                    FROM day_habits as DH
+                    WHERE DH.day_id = D.id
+                ) as completed,
+                (
+                    SELECT
+                        cast(count(*) as float)
+                    FROM habit_week_days as HWD
+                    JOIN habits as H
+                        ON H.id = HWD.habit_id
+                    WHERE 
+                        HWD.week_day = cast(strftime("%w", D.date/1000.0, "unixepoch") as int)
+                        AND H.created_at <= D.date
+                ) as amount
+            
+            FROM day as D
+        `
+
+        return summary
+    })
+
 }
